@@ -119,7 +119,7 @@ void channel_test()
     std::cout << "MSG_RES: " << msg.to_string() << std::endl << std::endl;
 }
 
-std::pair<std::vector<double>, std::vector<double>> berr_check_model(uint64_t interations, double thr, double duration, matrix_size m_size, uint64_t msg_size)
+std::pair<std::vector<double>, std::vector<double>> berr_check_model(uint64_t interations, double thr, double duration, matrix_size m_size, uint64_t msg_size, bool guard = false)
 {
     std::vector<double> berr_vec;
     std::vector<double> dur_points;
@@ -160,6 +160,10 @@ std::pair<std::vector<double>, std::vector<double>> berr_check_model(uint64_t in
     trellis t(reg_size, (*matrix), (*matrix).size(), (*matrix)[0].size());
     channel ch(0.0);
 
+    // Guard iterval for convolution
+    uint64_t height = (*matrix).size();
+    uint64_t guard_len = (guard) ? (height * reg_size) + ((msg_size + reg_size) % height) : 0;
+
     for (double prob(0.0); prob <= thr; prob += duration)
     {
         berr = 0.0;
@@ -171,6 +175,11 @@ std::pair<std::vector<double>, std::vector<double>> berr_check_model(uint64_t in
             {
                 char symbol = (static_cast<double>(random()) / static_cast<double>(RAND_MAX)) >= 0.5 ? '1' : '0';
                 msg += symbol;
+            }
+
+            for (uint64_t symbol_num(0); symbol_num < guard_len; ++symbol_num)
+            {
+                msg += '0';
             }
 
             my_bitset msg_bits(msg, base::BIN);
@@ -201,10 +210,10 @@ int main(/*int argc, char const *argv[]*/)
     //heavy_matrix_test();
     //channel_test();
 
-    auto res = berr_check_model(1000, 0.2, 0.001, matrix_size::TWO_BY_THREE, 20);
+    auto res = berr_check_model(1000, 1.01, 0.01, matrix_size::ONE_BY_FIVE, 20, true);
 
     std::string data_path = "data";
-    std::string folder_name = "/two_by_three";
+    std::string folder_name = "/one_by_five";
 
     std::string berr_file_path = data_path + folder_name + "/berr.txt";
     std::string dur_file_path = data_path + folder_name + "/duration.txt";
